@@ -1,0 +1,270 @@
+# Hexo Configuration
+## Docs: https://hexo.io/docs/configuration.html
+## Source: https://github.com/hexojs/hexo/
+
+# Site
+title: 呆呆-博客
+subtitle: '呆呆教室'
+description: '網頁技術| 物聯網應用 | AI 智能'
+keywords: '個人博客 呆呆 學習 Allen'
+author: Allen Tai
+language: zh-CN  #多語言支持
+
+timezone: 'UTC'
+
+# URL
+## If your site is put in a subdirectory, set url as 'http://example.com/child' and root as '/child/'
+
+url: http://blog.allen5183.synology.me
+root: /
+permalink: :category/:year:month:day-:urlname/  #:year/:month/:day/:title/
+permalink_defaults:
+pretty_urls:
+  trailing_index: true # Set to false to remove trailing 'index.html' from permalinks
+  trailing_html: true # Set to false to remove trailing '.html' from permalinks
+
+# Directory
+source_dir: source
+public_dir: public
+tag_dir: tags
+archive_dir: archives
+category_dir: categories
+code_dir: downloads/code
+i18n_dir: :lang
+skip_render:
+
+# Writing
+new_post_name: :title.md # File name of new posts
+default_layout: post
+titlecase: false # Transform title into titlecase
+external_link:
+  enable: true # Open external links in new tab
+  field: site # Apply to the whole site
+  exclude: ''
+filename_case: 0
+render_drafts: false
+
+post_asset_folder: true   # 若設為 true，在建立文件時，Hexo 會自動建立一個與文章同名稱的文件夾，
+                          # 可以把與該文章相關的所有資源都放到那個資料夾，如此一來，您便可以
+                          # 更方便的使用資源。
+
+relative_link: false
+future: true
+
+highlight:
+  enable: false           # 預設的不好看，需要禁用
+  line_number: true       # 顯示行數
+  auto_detect: false      # 如果未指定語言，則啟用自動檢測
+  tab_replace: ''         # 用n個空格代替 tabs; 如果值為空，則不會替換 tabs
+  wrap: true
+  hljs: false
+
+prismjs:
+  enable: true
+  preprocess: true
+  line_number: true
+  tab_replace: ''
+
+# Home page setting
+# path: Root path for your blogs index page. (default = '')
+# per_page: Posts displayed per page. (0 = disable pagination)
+# order_by: Posts order. (Order by date descending by default)
+index_generator:
+  path: ''
+  per_page: 6
+  order_by: -date
+
+# Category & Tag
+default_category: uncategorized
+category_map:
+tag_map:
+
+# Metadata elements
+## https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta
+meta_generator: true
+
+# Date / Time format
+## Hexo uses Moment.js to parse and display date
+## You can customize the date format as defined in
+## http://momentjs.com/docs/#/displaying/format/
+date_format: YYYY-MM-DD
+time_format: HH:mm:ss
+## updated_option supports 'mtime', 'date', 'empty'
+updated_option: 'mtime'
+
+# Pagination
+## Set per_page to 0 to disable pagination
+per_page: 6
+pagination_dir: page
+
+# Include / Exclude file(s)
+## include:/exclude: options only apply to the 'source/' folder
+include:
+exclude:
+ignore:
+
+# Extensions
+## Plugins: https://hexo.io/plugins/
+## Themes: https://hexo.io/themes/
+theme: matery
+
+# Deployment
+## Docs: https://hexo.io/docs/one-command-deployment
+deploy:
+  type: git
+  repo: https://github.com/alln-5183/allen-5183.github.io.git
+  branch: master
+
+## 代碼高亮度
+#自帶的代碼高亮度主題顯示不好看，關閉之，使用外掛 hexo-prism-plugin
+prism_plugin:
+  mode: 'preprocess'    # realtime/preprocess
+  theme: 'tomorrow'
+  line_number: true     # default false
+  custom_css:
+
+## 內容搜索
+## hexo-generator-search
+search:
+  path: search.xml
+  field: post
+
+## 中文連結轉拼音
+## hexo-permalink-pinyin
+permalink_pinyin:
+  enable: true
+  separator: '-' # default: '-'
+
+## 文章字數統計外掛程式
+## npm i --save hexo-wordcount
+
+wordCount:
+  enable: false # 將這個值設置為 true 即可.
+  postWordCount: true
+  min2read: true
+  totalCount: true
+
+postInfo:
+  date: true
+  update: false
+  wordCount: false # 設置文章字數統計為 true.
+  totalCount: false # 設置網站文章總字數統計為 true.
+  min2read: false # 閱讀時長.
+  readCount: false # 閱讀次數.
+
+
+## 添加emoji表情支持
+## hexo-filter-github-emojis
+githubEmojis:
+  enable: true
+  className: github-emoji
+  inject: true
+  styles:
+  customEmojis:
+
+## 添加 RSS 訂閱支持
+## hexo-generator-feed
+feed:
+  type: atom
+  path: atom.xml
+  limit: 20
+  hub:
+  content:
+  content_limit: 140
+  content_limit_delim: ' '
+  order_by: -date
+
+## 增加動漫人物
+## npm install --save hexo-helper-live2d
+## npm install live2d-widget-model-nito
+live2d: # https://github.com/EYHN/hexo-helper-live2d/blob/master/README.zh-CN.md
+    enable: true # 預設 false
+    scriptFrom: local # 預設
+    pluginRootPath: live2dw/ # 外掛程式在網站上的根目錄(相對路徑)
+    pluginJsPath: lib/       # 指令檔相對與外掛程式根目錄路徑
+    pluginModelPath: assets/ # 模型檔相對與外掛程式根目錄路徑
+
+    # scriptFrom: jsdelivr # jsdelivr CDN
+    # scriptFrom: unpkg    # unpkg CDN
+    # scriptFrom: https://cdn.jsdelivr.net/npm/live2d-widget@3.x/lib/L2Dwidget.min.js
+    # 你的自訂 url
+
+    tagMode: false # 標籤模式, 是否僅替換 live2d tag 標籤而非插入到所有頁面中
+    debug: false # 調試,是否在控制台輸出日誌
+    # log: false
+
+    model: # 模型選擇 https://github.com/xiazeyu/live2d-widget-models
+        use: live2d-widget-model-nito  # npm-module package name,
+        # npm install live2d-widget-model-nito
+        # use: wanko # 博客根目錄/live2d_models/ 下的目錄名
+        # use: ./wives/wanko # 相對於博客根目錄的路徑
+        # use: https://cdn.jsdelivr.net/npm/live2d-widget-model-wanko@1.0.5/assets/wanko.model.json
+        # 你的自訂 url
+    display:
+        position: right  # 模型顯示位置
+        width: 150       # 模型顯示宽度
+        height: 300      # 模型顯示高度
+    mobile:
+        show: true       # 是否在手機上顯示, 預設 false
+        scale: 0.5       # 移動設備上的縮放
+
+    react:
+      opacity: 0.7
+
+## 圖片懶加載
+## npm install hexo-lazyload-image --save
+#loading-image
+lazyload:
+  enable: true
+  #如果為真，則只有文章或頁面中的圖像支援延遲載入。
+  #如果為假，整個網站的圖像將使用惰性載入，包括來自主題的圖像，但不包括來自CSS樣式的背景圖像。
+  onlypost: false
+  loadingImg: /medias/loading.gif
+  isSPA: false # optional
+
+
+##博文加密 npm install --save hexo-blog-encrypt
+encrypt:
+  enable: false
+
+##播放視頻
+dplayer:
+  cdn:
+   - https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.js
+   - https://cdn.jsdelivr.net/npm/dplayer/dist/DPlayer.min.css
+  default:
+    api: https://api.prprpr.me/dplayer/
+    loop: yes
+    screenshot: yes
+    # 後面還可以接著寫其他預設配置
+  fixed: true
+
+aplayer:
+  #script_dir: some/place                        # Public 目錄下腳本目錄路徑，預設: 'assets/js'
+  #style_dir: some/place                         # Public 目錄下樣式目錄路徑，預設: 'assets/css'
+  #cdn: http://xxx/aplayer.min.js                # 引用 APlayer.js 外部 CDN 位址 (默認不開啟)
+  # style_cdn: https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css   # 引用 APlayer.css 外部 CDN 位址 (默認不開啟)
+  meting: true                                  # MetingJS 支持
+
+  fixed: true        # 是否開啟吸底模式
+  autoplay: true     # 是否自動播放
+
+  #meting_api: http://xxx/api.php                # 自訂 Meting API 地址
+  #meting_cdn: http://xxx/Meing.min.js           # 引用 Meting.js 外部 CDN 位址 (默認不開啟)
+  #asset_inject: false                           # 自動插入 Aplayer.js 與 Meting.js 資源腳本, 默認開啟
+  #externalLink: http://xxx/aplayer.min.js       # 老版本參數，功能與參數 cdn 相同
+
+#豆瓣書單電影頁面
+douban:
+  user: 224635167  # 個人 id
+  builtin: false   # 若想生成豆瓣頁面，這個需要設置為 true
+  book:
+    title: 我的書單
+    quote: <script src="https://www.douban.com/j/doumail/num?callback=jsonp_7bi40halp5cjns1" async=""></script>
+  movie:
+    title: 影視欣賞
+    quote: <script src="https://www.douban.com/j/doumail/num?callback=jsonp_dwua1y2j5rglz0p" async=""></script>
+  game:
+    title: 閒暇之餘
+    quote: <script src="https://www.douban.com/j/doumail/num?callback=jsonp_puhy19pc1owhbam" async=""></script>
+  timeout: 10000

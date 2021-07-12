@@ -1,0 +1,43 @@
+[
+  {
+    "name": "didi",
+    "cover": "didi/dia-cover.jpg",
+    "description": "呆呆",
+    "photos": [
+      "didi/dia01.jpg",
+      "didi/dia02.jpg",
+      "didi/dia03.jpg",
+      "didi/dia04.jpg",
+      "didi/dia05.jpg",
+      "didi/dia06.jpg",
+      "didi/dia07.jpg",
+      "didi/dia08.jpg",
+      "didi/dia09.jpg",
+      "didi/dia10.jpg",
+      "didi/dia11.jpg",
+      "didi/dia12.jpg",
+      "didi/dia13.jpg",
+      "didi/dia14.jpg",
+      "didi/dia15.jpg",
+      "didi/dia16.jpg",
+      "didi/dia17.jpg",
+      "didi/dia18.jpg",
+      "didi/dia19.jpg",
+      "didi/dia20.jpg"
+    ]
+  },
+  {
+    "name":  "web109b",
+    "cover": "web109b/web109b-cover.jpg",
+    "description": "109 年度 B 期跨平台網頁程式設計",
+    "photos": [
+      "web109b/web109b-1.jpg",
+      "web109b/web109b-2.jpg",
+      "web109b/web109b-3.jpg",
+      "web109b/web109b-4.jpg",
+      "web109b/web109b-5.jpg",
+      "web109b/web109b-6.jpg",
+      "web109b/web109b-7.jpg"
+    ]
+  }
+]

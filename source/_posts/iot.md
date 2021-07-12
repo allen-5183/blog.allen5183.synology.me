@@ -1,0 +1,763 @@
+---
+title: 物聯網綜合應用(一)
+top: false
+cover: false
+toc: true
+mathjax: false
+comments: true
+date: 2021-06-02 12:23:55
+urlname: iot
+author: allen
+img:
+coverImg:
+password:
+summary:
+tags: 
+- iot
+- wiot
+categories:
+- iot
+---
+<script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.js'></script>
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.css' />
+<script src='https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.js'></script>
+
+## 0. 課程準備
+
+1. [雲端硬碟](https://drive.google.com/drive/folders/1YhOhREq4PmGqmGdS4rLc_dzmm0w92UTs?usp=sharing)
+2. [生活智慧屋展示](https://www.youtube.com/embed/zvrGOu8QFSo)
+   <br>
+   <iframe width="560" height="315" src="https://www.youtube.com/embed/zvrGOu8QFSo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+3. [講義](https://drive.google.com/file/d/1EYgZEVWCqUnCRPuZ4-5JPg1hLfFeTPQs/view?usp=sharing)
+
+## 1. 硬體建置
+
+### 1.1 配線圖
+
+- 樹莓派腳位圖
+
+  <a data-fancybox="gallery" href='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210602102127.png'><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210602102127_s.png' class="nofancybox  img-center" /></a>
+
+- 樹莓派與其他裝置連接腳位圖
+
+  |PI3 B+ 腳位  | PI3 B+ 功能描述|其他裝置腳位
+  |:------------|:---------------|:----------------
+  PI3 B+ 18   |GPIO 24           |Buzzer I/O
+  PI3 B+ 2    |5V Power          |Buzzer VCC、SG 900 VCC(紅)
+  PI3 B+ 6    |GND               |Buzzer GND、SG 900 GND(褐)
+  PI3 B+ 11   |GPIO 17           |DHT 11 Out
+  PI3 B+ 4    |5V Power          |DHT +
+  PI3 B+ 20   |GND               |DHT -
+  PI3 B+ 12   |GPIO 18 PCM_CLK   |SG 900 訊號(橘)
+  PI3 B+ 37   |GPIO 26           |RELAY IN1
+  PI3 B+ 13   |GPIO 27           |RELAY IN2
+  PI3 B+ 15   |GPIO 22           |RELAY IN3
+  PI3 B+ 16   |GPIO 23           |RELAY IN4
+  PI3 B+ 24   |GPIO  8 SPIO_CE0_N|RFID RC522 SDA
+  PI3 B+ 23   |GPIO 11 SPIO_SCLK |RFID RC522 SCK
+  PI3 B+ 19   |GPIO 10 SPIO_MOSI |RFID RC522 MOSI
+  PI3 B+ 21   |GPIO  9 SPIO_MISO |RFID RC522 MISO
+  PI3 B+ 25   |GND               |RFID RC522 GND
+  PI3 B+ 22   |GPIO 25           |RFID RC522 RST
+  PI3 B+ 17   |3V3 Power         |RFID RC522 3.3V
+
+### 1.2 網路設定參考
+
+有兩處可以修正網卡設定，擇一來設定，第一種方法會優先。
+  
+1. `sudo nano /etc/dhcpcd.conf`
+2. `sudo nano /etc/network/interfaces`
+
+   ```conf
+   #表示使用 localhost
+   auto lo 
+   # 有網路卡 eth0，則用靜態方式設定 IP:
+   iface eth0 inet static
+   static ip_address=192.168.57.40
+   static routers=192.168.57.254
+   static domain_name_servers=8.8.8.8 168.95.1.1
+  
+   # DHCP
+   #iface eth0 inet dhcp
+   # 有網路卡 eth0，則使用 dhcp 獲取 IP:
+   #static domain_name_servers=8.8.#8.8 168.95.1.1
+
+   # Wifi
+   #auto wlan0 #有 WLAN 使用 wlan0 裝置名稱
+   #wlan裝置可以熱拔插
+   #allow-hotplug wlan0
+   #有WLAN 網路時，使用 wpa-psk 認證方式
+   #iface wlan0 inet dhcp
+   #wpa-ssid "yvts"
+   #wpa-psk  "yvtsyvts"
+   ```
+
+   **重新啟動**
+   `sudo /etc/init.d/networking restart`
+
+## 2. 環境設置
+
+### 2.1 SSH 免密碼登入
+
+1. 使用系統管理者權限，修改檔案 `c:\windows\system32\drivers\etc\hosts`
+
+   增加一筆資料如下:
+
+   ```bash
+   192.168.xxx.xxx    smarthome.edu.tw
+   ```
+
+2. 測試:
+
+   ```bash
+   ping smarthome.edu.tw
+   ```
+
+3. 本機端(Window)，安裝 [Git](https://git-scm.com/downloads)
+4. 設定識別資料, 使用 `Git bash` 開啟終端機視窗後，執行如下命令:
+
+   ```bash
+   git config --global user.name  "John Doe"
+   git config --global user.email  johndoe@example.com
+   
+   #指定編輯器
+   git config --global core.editor "'C:/Program Files (x86)/Notepad++/notepad++.exe' -multiInst -nosession"
+   #or
+   git config --global core.editor "'C:/tools/nano.exe' -multiInst -nosession"   
+   git config --list
+   ```
+
+5. 配置 `sshd` 服務，允許認證金鑰檔案:
+  
+   ```bash
+   #登入 PI
+   ssh pi@smarthome.edu.tw
+   #修改 SSH Daemon 服務組態檔
+   sudo nano /etc/ssh/sshd_config
+   # 將最前面的註解符號 `#` 取消掉，如下
+     AuthorizedKeysFile      .ssh/authorized_keys
+   ```
+
+6. 在定時備份或批次遠端處理，往往需要免密碼登入遠端主機工作。為達此目的，首先必須在 client 端產生一組 key，包含公開金鑰（Public Key）與私密金鑰（Private Key），將公鑰送到要登入的主機，相互對應做免密碼的登入。
+
+   ```bash
+   #檢查有無私鑰與公鑰(本機端 PC)
+   ls -al ~/.ssh/id_rsa.pub
+   ls -al ~/.ssh/id_rsa
+   #若沒有金鑰的話，key 的產生方法：
+   ssh-keygen -t rsa -C xxx@gmail.com
+
+   Generating public/private rsa key pair.
+   Enter file in which to save the key (/root/.ssh/id_rsa):
+   Enter passphrase (empty for no passphrase):
+   Enter same passphrase again:
+   Your identification has been saved in /root/.ssh/id_rsa.
+   Your public key has been saved in /root/.ssh/id_rsa.pub.
+   The key fingerprint is:
+   c3:e9:25:65:00:c8:65:cb:e8:fe:4e:7e:ce:06:a4:9d root@kvm8.deyu.wang
+   The key's randomart image is:
+   +--[ RSA 2048]----+
+   |   . o+..        |
+   |    o+ . .       |
+   |    . o   o      |
+   |   .  .. +       |
+   |    .+ .S .      |
+   |   .. E. +       |
+   |    . ...        |
+   |     + .o        |
+   |     .++o        |
+   +-----------------+
+   ```
+
+7. 將公開金鑰放到要登入的主機上，利用以下指令完成:
+
+   ```bash
+   ssh pi@smarthome.edu.tw 'mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys' < ~/.ssh/id_rsa.pub
+   ```
+
+8. 登入測試
+
+   ```bash
+   ssh pi@smarthome.edu.tw
+   ```
+
+   >特別注意目錄 .ssh 及檔案 authorized_keys 的權限，若群組或其他人的權限過大，除了安全性有問題外，也有可能因 ssh 判斷要對應的金鑰不安全，而無法對應，也就是不能免密碼登入。
+
+9. 調整權限  
+   設定 PI 上的authorized_keys 可讀、寫
+
+   ```bash
+   ssh pi@smarthome.edu.tw "chmod 600 ~/.ssh/authorized_keys"
+   # 設定 PI 上的authorized_keys 唯讀
+      ssh pi@smarthome.wda.edu.tw "chmod 400 ~/.ssh/authorized_keys"
+   ```
+
+10. 再簡化登入程序: 本機 PC 端，加入 `config`, 簡化 `ssh` 登入指令
+
+    - 在 `~/.ssh` 下新增 `config` 檔案，不需任何副檔名。
+    - 在新增的檔案裡加上你的第一個 SSH config
+
+      `nano ~/.ssh/config`
+
+      ```bash
+      Host pi                    # 用來連線的 alias 名稱
+      HostName smarthome.edu.tw  # host domain 或 ip
+      Port 22                    # host 的 SSH port
+      User pi                    # (選填)登入 SSH 的 username，
+                                 #  只連 git 的話，可以不必要
+      ForwardX11 yes             # (選填) 啟用回傳 GUI
+      ```
+
+    - 測試
+      `ssh pi`  
+
+11. 常用 SSH 指令
+
+    ```bash
+    #基本連線
+    ssh username@hostname[ip]  
+    #SSH 連線再附加其他指令
+    ssh pi mkdir test
+    #scp 指定 SSH name
+    scp -r ./ pi:/var/www/html/project/
+    ```
+
+12. 本機電腦端設定:
+
+    ```bash
+    d:
+    cd d:\xampp\htdocs
+   
+    #打開現行工作目錄
+    code .
+    ```
+
+    然後在 `vscode` 視窗下建立一新目錄 `smarthome`，就可以點擊滑鼠左鍵，來執行下載樹莓派檔案。
+
+13. 安裝 vscode 的套件 `sftp`
+    F1 或 Ctrl+Shift+P, 選擇 SFTP:Config
+
+    加入以下設定:
+
+    ```bash
+    [
+       {
+           :
+       } ,
+
+       {
+        "name": "My Server",
+        "host": "smarthome.edu.tw",
+        "protocol": "sftp",
+        "port": 22,
+        "username": "pi",
+        "privateKeyPath": "C:/Users/allen/.ssh/id_rsa",
+        "remotePath": "/home/pi/www",
+        "uploadOnSave": true
+      }
+    ]  
+    ```
+
+### 2.2 安裝 `Apache + MySQL+ PHP`
+
+1. 更新軟體套件清單
+   `sudo apt get update y`
+
+2. 更新軟體套件本身
+   `sudo apt get upgrade y`
+
+3. 重啟
+   `reboot`
+
+#### 2.2.1 安裝 Apache PHP
+
+1. 安裝軟體
+
+   ```bash
+   sudo apt get install apache2 y
+   sudo apt get install php mysql y
+   sudo apt get install php mbstring y
+   sudo systemctl restart apache2
+   sudo nano /etc/apache2 apache2.conf ## 設定文件
+   ```
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601160012.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601160012_s.png" class="nofancybox  img-center" /></a>
+   </br>
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601160111.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601160111_s.png" class="nofancybox  img-center" /></a>
+
+   `sudo nano /etc/ports.conf`
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601160507.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601160507_s.png" class="nofancybox  img-center" /></a>
+
+   **重啟伺服器**
+   `sudo systemctl restart apache2`
+
+2. 驗證 `apache` 正常運作：
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601161921.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601161921_s.png" class="nofancybox  img-center" /></a>
+
+   ```bash
+   cd /var/www/html/
+   sudo mv index.html index1.html
+   ```
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601162829.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601162829_s.png" class="nofancybox  img-center" /></a>
+
+3. 修改根目錄：
+
+   ```bash
+   mkdir -p /home/pi/www/web
+   sudo chown -R pi:www-data /home/pi/www/web
+   chmod -R 770 /home/pi/www/web
+   sudo nano /etc/apache2/apache2.conf
+   ```
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601165908.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601165908_s.png" class="nofancybox  img-center" /></a>
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601165936.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601165936_s.png" class="nofancybox  img-center" /></a>
+
+   `sudo nano /etc/apache2/sites-enabled/000-default.conf`
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601163545.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601163545_s.png" class="nofancybox  img-center" /></a>
+
+   > cd /etc/apache2/sites-available
+   > sudo ln -s /etc/apache2/sites-enabled/000-default.conf
+   > sudo systemctl restart apache2
+
+4. 加入虛擬新網域
+
+   - 新網域名稱: `smarthome.edu.tw`
+   - 建立資料夾: `mkdir ~/www/smarthome`
+   - 修改現有檔案: `nano /etc/apache2/sites-enabled/000-default.conf`
+
+     ```conf
+     <VirtualHost *:80>
+       ServerName smarthome.edu.tw
+       #ServerAdmin webmaster@localhost
+       DocumentRoot /home/pi/www/smarthome
+
+       <Directory /home/pi/www/smarthome>
+         Options indexes FollowSymLinks
+         AllowOverride None
+         Require all granted
+       </Directory>
+     </VirtualHost>
+     ```
+
+5. 重啟 `Apache` 伺服器
+   `sudo systemctl restart apache2`
+
+6. 開啟 `PHP` 錯誤日誌
+   `sudo nano /etc/php/7.0/apache2/php.ini`
+
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601163646.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601163646_s.png" class="nofancybox  img-center" /></a>
+
+#### 2.2.2 安裝 MySQL
+
+- 安裝
+  `apt cache search mysql server`
+  `sudo apt get install mysql server`
+
+- Setting MySQL/MariaDB root password  
+  
+  ```bash
+  sudo mysql u root p
+  mysql> use mysql;
+  mysql> update user set plugin='' where u ser='root';
+  mysql> flush privileges;
+
+  (刷新權限，當你直接通過 update 權限後，需要通過刷新使你的授權有效)
+
+  mysql> exit
+  sudo mysql_secure_installation
+  sudo mysql u root p
+  ```
+
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601170430.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601170430_s.png" class="nofancybox  img-center" /></a>
+
+  [參考文獻](https://websiteforstudents.com/mariadb--installedinstalled--witwithouthout--passwordpassword--promptsprompts--forfor--rootroot--onon--ubuntuubuntu--1717--1010--1818--0404--beta/beta/)
+
+#### 2.2.3 安裝 phpmyadmin
+
+- 安裝 `sudo nano ~/www/web/info.php`
+  
+  內容加入：
+  
+  ```php
+  <?php
+    phpinfo();
+  ?>
+  ```
+
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601191331.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601191331_s.png" class="nofancybox  img-center"/></a>
+
+- 檢查 `MySql` 版本
+  
+  `sudo mysql --version`
+
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601191548.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601191548_s.png" class="nofancybox  img-center"/></a>
+  
+- 檢查 `PHP` 版本  
+  `sudo php --version`
+
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601191856.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601191856_s.png" /></a>
+
+- 找尋下載檔案 [phpmyadmin](https://www.phpmyadmin.net/downloads/)
+
+  <a href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601192053.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601192053_s.png" class="nofancybox  img-center" /></a>
+
+  >補充:
+   不可以使用 phpmyadmin 4.9+snapshot 的版本(不支援繁體中文，不穩定版本)
+
+- 下載與安裝
+  
+  ```yml
+  cd ~/www/web/
+  sudo wget https://files.phpmyadmin.net/phpMyAdmin/4.7.3/phpMyAdmin-4.7.3-alllanguages.tar.gz
+  sudo tar -zxvf phpMyAdmin-4.7.3-all-languages.tar.gz
+  sudo mv phpMyAdmin-4.7.3-all-languages phpMyAdmin
+  ```
+
+#### 2.2.4 解決 缺少 tmp 與 移除其他警告訊息
+
+- 現象
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601194654.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601194654_s.png" class="nofancybox  img-center" /></a>
+  - 解決 1: 移除設定檔案需要設定一組加密密碼 (blowfish_secret)
+  
+    ```bash
+    sudo cp /var/www/html/phpMyAdmin/config.sample.inc.php  ~/www/web/phpMyAdmin/config.inc.php
+    ```
+
+    `sudo nano ~/www/web/phpMyAdmin/config.inc.php`
+
+    將檔案內的 `$cfg['blowfish_secret'] = '';`
+    設定為 ：(至少要 32 個字元)
+
+    `$cfg['blowfish_secret'] = 'xxxxxxxxxxxxxxxx';`
+
+    >意思是：加上一堆亂七八糟的英文數字當作秘鑰
+
+  - 解決 2: 移除 `tmp` 警告訊息
+
+    ```bash
+    sudo rm -rf /var/www/html/phpMyAdmin/tmp(若本來就存在，刪除再新增)
+    sudo mkdir /var/www/html/phpMyAdmin/tmp
+    sudo chmod 777 /var/www/html/phpMyAdmin/tm
+    ```
+
+    <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601195724.png"><img src="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/20210601195724_s.png" class="nofancybox  img-center" /></a>
+
+## 3. 影像串流  MJPG-STREAMER for WebCam
+
+### 3.1 說明
+
+&emsp;&emsp;安裝 `mjpg-streamer`， `mjpg-streamer` 是用來將視訊網路串流化，透過 `mjpg` 裡面的解碼器，可以讓影像擷取速率以及畫質有良好的表現。
+
+- [參考文獻](http://www.linux-projects.org/uv4l/installation/)
+- PI 上安裝影像串流(mjpg-streamer)，把 `Raspberry Pi` 轉成 `Webcam server`
+
+- PI 上安裝 `Motion`， 動態捕捉, 依照間格時間來抓取.
+
+### 3.2 安裝相關套件
+
+- 步驟
+  
+  ```bash
+  #更新 apt-get
+  sudo apt-get update
+  sudo apt-get upgrade
+  #安裝依賴包
+  sudo apt-get install subversion
+  sudo apt-get install libjpeg-dev
+  sudo apt-get install imagemagick
+  sudo apt-get install libv4l-dev
+  ```
+
+### 3.3 安裝 `mjpg-streamer`
+
+- 步驟
+
+  ```bash
+  mkdir ~/source
+  cd ~/source
+  # 利用 svn 把最新版的 mjpg-streamer 抓下來
+  svn co https://svn.code.sf.net/p/mjpg-streamer/code/
+  cd code/mjpg-streamer
+  make
+  sudo make install
+
+  # 拷貝到 *.so /usr/local/lib
+  sudo cp  *.so /usr/local/lib/.
+  # 拷貝到 mjpg_streamer 到 /usr/local/bin
+  sudo cp mjpg_streamer  /usr/local/bin/.
+  ```
+
+### 3.4 停止 `motion`
+
+- 步驟
+  
+  ```bash
+  #如果 motion 還在啟動中，先停掉
+  sudo service motion stop
+  ```
+
+### 3.5 啟動 `mjpg-streamer`
+
+- 步驟
+  
+  ```bash
+  # 先打開 pi carmera
+  sudo raspi-config
+  ```
+
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-1.png"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-1_s.png' class='nofancybox  img-center' /></a>
+  
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-2.png"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-2_s.png' class='nofancybox  img-center' /></a>
+  
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-3.png"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-3_s.png' class='nofancybox  img-center' /></a>
+  
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-4.png"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-4_s.png' class='nofancybox  img-center' /></a>
+  
+  **須重開機**
+
+  ```bash
+  cd ~/source/code/mjpg-streamer
+  sudo ./mjpg_streamer -i "./input_uvc.so -f 10 -r 1024x768 -d /dev/video0 -y -n" -o "./output_http.so -w ./www -p 8080"
+  ```
+
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-5.png"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_mjpeg-streamer-5_s.png' class='nofancybox  img-center' /></a>
+  
+  >`320x240` 也可以修改為 `640x480`，如果啟動失敗，請再執行下列程序:
+
+  ```bash
+  sudo nano  /etc/modules
+  ```
+
+  #加入以下內容 :
+  bcm2835-v412
+
+  #重新啟動
+  `sudo reboot`
+
+### 3.6 測試
+
+&emsp;&emsp;啟動後在 raspberry ip 位置。例如: `192.168.62.100:8080/stream.html` 中，檢查有沒有看到影像串流。
+
+&emsp;&emsp;`http://smarthome.edu.tw:8080/?action=streamer`
+
+&emsp;&emsp;或
+&emsp;&emsp;`http://smarthome.edu.tw:8080/stream_simple.html`
+
+&emsp;&emsp;如果要客制化頁面的，可以再在自己的頁面上加上 `tag`
+&emsp;&emsp;`http://192.168.62.100:8080/?action=stream"`，就能捉的到串流影像。
+
+- 例:
+  
+  ```html
+  <body align=center>
+    <iframe width="560" height="315" src="http://192.168.62.100:8080/?action=stream"" frameborder=" 0"
+        allowfullscreen></iframe>
+  </body>
+  ```
+
+### 3.7 設置登入帳號和密碼
+
+- 關掉服務
+
+  ```bash
+  #查指定程序 id
+  pidof mjpg_streamer
+  #刪除指定 id
+  kill -9 [pid of mjpg_streamer]
+
+  sudo ./mjpg_streamer -i "./input_uvc.so -f 10 -r 320x240 -d /dev/video0 -y -n" -o "./output_http.so -w ./www -p 8080 -c userid:password"
+  ```
+
+### 3.8 開機時自動執行串流伺服器
+
+- 操作步驟如下:
+
+  ```python
+  cd ~/source
+  nano mjpg.py
+  ```
+
+  內容如下:
+
+  ```yaml
+  import os
+  os.system('LD_LIBRARY_PATH=/usr/local/lib mjpg_streamer -i "input_uvc.so -y -r 1024x768 -n" -o "output_http.so -w /home/pi/source/code/mjpg-streamer/www"')
+  ```
+
+  #改變屬性(可執行)
+
+  ```bash
+  chmod 755 mjpg.py
+  sudo nano /etc/crontab
+  
+  SHELL=/bin/sh
+
+  #0 0 * * * root  python /home/pi/source/mjpg.py
+  @reboot root python /home/pi/source/mjpg.py &
+  ```
+
+  >注意: import os 與 os.system() 注意前面不要空行
+
+## 4. GPIO 控制
+
+### 4.1 說明
+
+&emsp;&emsp;網頁控制 LED(燈與風扇) Relay Control (GPIO)，現在方法使用國外人寫的一個插件模組[wiringPI](http://wiringpi.com/download-and-install/), 然後在網頁上使用執行 linux shell command 來控制腳位(針腳)用 php 控制．
+
+>可改寫成不用這插件, 直接用 `python` 來控制腳位
+
+### 4.2 腳位控制 GPIO
+
+- 腳位
+  |腳位名稱|  用途            |
+  |-------|------------------|
+  |GPIO26 | RELAY IN1 For Fan|
+  |GPIO27 | RELAY IN2 For LED|
+  |GPIO22 | RELAY IN3 For LED|
+  |GPIO23 | RELAY IN4 For LED|
+
+- 安裝模組 `wiringPi`
+  
+  ```bash
+  `sudo apt-get install wiringpi`
+  ```
+
+  >目前 PI 都已內建支援 GPIO，使用命令： `pinout` 可得知腳位訊息。
+  
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot-gpio-pinout.png"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot-gpio-pinout_s.png' class='nofancybox  img-center' /></a>
+
+### 4.3 測試有無 `WiringPi` 模組
+
+- 檢查 GPIO 版本
+  
+  ```bash
+  gpio -v
+  ```
+
+- 顯示目前所有 GPIO 的輸入或輸出狀態
+
+  ```bash
+  sudo gpio readall
+  ```
+  <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_gpio_readall.png"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/wiot_gpio_readall_s.png' class='nofancybox  img-center' /></a>
+  
+### 4.4 測試硬體接線狀態
+
+- 使用下列指令作測試
+
+  ```bash
+  gpio -g mode 26 out
+  gpio -g write 26 1
+  gpio -g write 26 0
+
+  gpio -g mode 27 out
+  gpio -g write 27 1
+  gpio -g write 27 0
+
+  gpio -g mode 22 out
+  gpio -g write 22 1
+  gpio -g write 22 0
+
+  gpio -g mode 23 out
+  gpio -g write 23 1
+  gpio -g write 23 0
+  ```
+  
+  > [參考文件: GPIO Control](https://www.raspberrypi.org/documentation/configuration/config-txt/gpio.md)
+
+### 4.5 使用網頁技術程式控制 `GPIO`
+
+#### 相關網頁技術補充
+
+1. jQuery 使用
+   - 官網: `https://jquery.com/`
+2. Bootstrap 使用: 需先引入 `jQuery` 套件。
+   - [Bootstrap．Getting started](https://getbootstrap.com/docs/3.4/getting-started/)
+   - 找到 [Components 連結](https://getbootstrap.com/docs/3.4/components/), 搜尋元件關鍵字 [Navbar](https://getbootstrap.com/docs/3.4/components/#navbar)
+
+   - 裝置斷點
+     xs(`< = 768px`), sm(`> = 768px`), md(`> = 992px`), lg(`> = 1200px`) 或 xl(`x > = 1200px`)
+     <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/grid.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/grid_s.jpg' class='nofancybox  img-center' /></a>
+
+   - class 的格式  
+     - m `margin`
+     - p `padding`
+     - t `margin-top` 或 `padding-top`
+     - b `margin-bottom` 或 `padding-bottom`
+     - l `margin-left` 或 `padding-left`
+     - r `margin-right` 或 `padding-right`
+     - x `padding-left` 和 `padding-right` 或 `margin-left` 和 `margin-right`
+     - y `padding-top` 和 `padding-bottom` 或 `margin-top` 和 `margin-bottom`
+     - 空白 在元素所有 4 邊上設置 `padding` 或 `margin`
+     - 0 將 `padding` 或 `margin` 設置為 `0`
+     - 1 將 `padding` 或 `margin` 設置為 `25rem`(如果 `font-size=16px`, 則為 `4px`)
+     - 2 將 `padding` 或 `margin` 設置為 `5rem`(如果 `font-size=16px`, 則為 `8px`)
+     - 3 將 `padding` 或 `margin` 設置為 `1rem`(如果 `font-size=16px`, 則為 `16px`)
+     - 4 將 `padding` 或 `margin` 設置為 `1.5rem`(如果 `font-size=16px`, 則為 `24px`)
+     - 5 將 `padding` 或 `margin` 設置為 `3rem`(如果 `font-size=16px`, 則為 `48px`)
+     - auto 將 margin 設成 auto
+     - col-md-offset-*  往右移動欄位，增加左外距的 * 個欄位。
+       - 例: .col
+3. [Font Awesome](https://fontawesome.com/)
+   - 進入官網。
+   - 點擊 [icons 連結](https://fontawesome.com/v5.15/icons)
+   - 搜尋關鍵字，找出合適的字型圖示。 
+     範例: 關鍵字: `light` 找到 [lightbulb](https://fontawesome.com/v5.15/icons/lightbulb?style=solid) 後，點擊 `Start Using This Icon`，拷貝畫面上的 HTML 代碼來使用這圖示。
+
+4. 用 `Git` 版本控管專案
+   4.1. 分散式版本控管系統
+      - `Git` 為分散式版本控管系統，可把檔案狀態作為更新歷史紀錄加以保存，⽅便還原與追蹤。
+      - 為了解決協作時對於同⼀檔案的修改導致互相覆蓋，⼜無法紀錄修改等問題。
+      - 版本庫是記錄檔案或⽬錄狀態的地⽅，儲存內容的修改歷史記錄，分為本地端與遠端。
+      - 本地端與遠端版本庫功能相同，差別在於遠端版本庫作為協作公開使⽤。
+ 
+   4.2. 三層式目錄架構
+      <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/github1.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/github1_s.jpg' class='nofancybox  img-center' /></a>    
+      - ⼯作⽬錄(`working directory`)：專案被取出的某⼀個版本。這些檔案從 `Git` ⽬錄內被壓縮過的資料庫中拉出來並放在保存⽬前專案的⽬錄供使⽤或修改。
+      - 暫存區域(`staging area`)：位於⼯作⽬錄與版本庫之間，為了向版本庫提交前的暫存區域。所有提交不會直接進版本庫，⽽是先進到暫存區作索引，之後才提交。
+      - `Git` ⽬錄(`repository`)：`Git` ⽤來儲存專案的 `metadata` 及`物件資料庫`。這是 `Git` 最重要的部份，當從其它版本庫複製時會備份過來。
+
+   4.3 基本 Git 工作流程 
+      <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/github0.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/github0_s.jpg' class='nofancybox  img-center' /></a>
+
+      1. 讀者修改⼯作⽬錄內的檔案。
+      2. 暫存檔案，將檔案的快照新增到暫存區域。
+      3. 做提交的動作，這會讓存在暫存區域的檔案快照永久地儲存在 `Git` ⽬錄。
+      >因為採⽤ `Git` 版本控管，更新歷史會被保存，所以無須複製備⽤檔案
+   
+   4.4 範例實作
+       - 怎麼上靜態網站
+         - 主分支(限制一個)，每一個帳號一個，固定為: {帳號}.github.io，所以建立倉庫名稱時必須為 `帳號.github.io`，用這個儲存庫所建立的專案，他的路徑就會在 `帳號.github.io`。 一對一的對應，建議用在部落格。
+
+         範例: `https://allen-5183.github.io/`
+         - 次分支(無限制，主要在 `gh-pages` 分支)，在主分支的路徑之下
+
+#### 4.5.1 單顆控制
+
+- `gpio1.php`
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio1.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio1_s.jpg' class='nofancybox  img-center' /></a>
+
+- `gpio2.php`
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio2.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio2_s.jpg' class='nofancybox  img-center' /></a>
+- `gpio3.php`
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio3.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio3_s.jpg' class='nofancybox  img-center' /></a>
+- `gpio4.php`
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio4.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio4_s.jpg' class='nofancybox  img-center' /></a>
+  
+#### 4.5.2 多顆控制
+
+- `gpio_all.php`
+   <a data-fancybox="gallery" href="https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio_all.jpg"><img src='https://cdn.jsdelivr.net/gh/allen-5183/blog.allen5183.synology.me/images/gpio_all_s.jpg' class='nofancybox  img-center' /></a>  
+#### 4.5.3 使用 `Ajax` 技術 串接 `API` 控制
+
+- `gpio_all_ajax.php`
+- `gpio_all_ajax_api.php`
+  
+#### 4.5.4 使用 Webstorage 儲存狀態，控制 LED
+
+- `gpioControl.php`
